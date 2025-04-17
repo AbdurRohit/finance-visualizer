@@ -28,6 +28,7 @@ A modern and intuitive personal finance tracking application that helps you mana
 
 - **API**: [Finance API](https://github.com/AbdurRohit/finance-api)
 - **Database**: MongoDB
+- **ORM**: Prisma
 - **Server**: Node.js with Express
 - **Authentication**: JWT (JSON Web Tokens)
 
