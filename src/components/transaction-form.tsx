@@ -57,9 +57,11 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
       }
 
       onSuccess(newTransaction)
+      import('sonner').then(({ toast }) => {
+        toast.success(isEditing ? 'Transaction updated' : 'Transaction added')
+      })
     } catch (error) {
       console.error(error)
-      // Show error with toast
       import('sonner').then(({ toast }) => {
         toast.error("Failed to save transaction")
       })

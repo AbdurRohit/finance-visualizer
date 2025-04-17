@@ -1,24 +1,58 @@
 "use client"
+
 // app/page.tsx
-import { Suspense } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { Transaction } from '@/types/transaction'
 import { TransactionForm } from '@/components/transaction-form'
 import { TransactionList } from '@/components/transaction-list'
 import { MonthlyChart } from '@/components/monthly-chart'
 import { api } from '@/lib/api'
-// import { Toaster } from '@/components/ui/sonner'
+import { Toaster } from 'sonner'
 
-async function getTransactions(): Promise<Transaction[]> {
-  try {
-    return await api.getTransactions()
-  } catch (error) {
-    console.error('Failed to fetch transactions:', error)
-    return []
+export default function Home() {
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Fetch transactions only once on mount and when explicitly requested
+  const fetchTransactions = async () => {
+    if (isRefreshing) return
+
+    setIsRefreshing(true)
+    try {
+      const data = await api.getTransactions()
+      setTransactions(data)
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error)
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
   }
-}
 
-export default async function Home() {
-  const transactions = await getTransactions()
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchTransactions()
+  }, [])
+
+  const handleSuccess = (newTransaction: Transaction) => {
+    // Optimistically update the local state
+    setTransactions(prev => {
+      const exists = prev.some(t => t.id === newTransaction.id)
+      if (exists) {
+        return prev.map(t => t.id === newTransaction.id ? newTransaction : t)
+      } else {
+        return [...prev, newTransaction]
+      }
+    })
+    
+    // No need to refetch everything - we already have the updated data
+  }
+
+  const handleTransactionChange = () => {
+    // Only do a full refetch when needed (e.g., after delete operations)
+    fetchTransactions()
+  }
 
   return (
     <div className="container mx-auto py-10 space-y-10">
@@ -26,55 +60,35 @@ export default async function Home() {
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1">
-          <Suspense fallback={<div>Loading form...</div>}>
-            <ClientForm />
-          </Suspense>
+          {isLoading ? (
+            <div>Loading form...</div>
+          ) : (
+            <TransactionForm onSuccess={handleSuccess} />
+          )}
         </div>
         
         <div className="md:col-span-2">
-          <Suspense fallback={<div>Loading chart...</div>}>
+          {isLoading ? (
+            <div>Loading chart...</div>
+          ) : (
             <MonthlyChart transactions={transactions} />
-          </Suspense>
+          )}
         </div>
       </div>
       
       <div>
         <h2 className="text-2xl font-bold mb-4">Transaction History</h2>
-        <Suspense fallback={<div>Loading transactions...</div>}>
-          <ClientTransactionList initialTransactions={transactions} />
-        </Suspense>
+        {isLoading ? (
+          <div>Loading transactions...</div>
+        ) : (
+          <TransactionList
+            initialTransactions={transactions}
+            onTransactionChange={handleTransactionChange}
+          />
+        )}
       </div>
       
-      {/* <Toaster /> */}
+      <Toaster />
     </div>
-  )
-}
-
-// client hooks 
-
-import { useRouter } from 'next/navigation'
-
-function ClientForm() {
-  const router = useRouter()
-  
-  const handleSuccess = (newTransaction: Transaction) => {
-    router.refresh()
-  }
-  
-  return <TransactionForm onSuccess={handleSuccess} />
-}
-
-function ClientTransactionList({ initialTransactions }: { initialTransactions: Transaction[] }) {
-  const router = useRouter()
-  
-  const handleTransactionChange = () => {
-    router.refresh()
-  }
-  
-  return (
-    <TransactionList 
-      initialTransactions={initialTransactions} 
-      onTransactionChange={handleTransactionChange} 
-    />
   )
 }

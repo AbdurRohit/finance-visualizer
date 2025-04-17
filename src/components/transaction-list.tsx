@@ -1,7 +1,7 @@
 // components/transaction-list.tsx
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Transaction } from '@/types/transaction'
 import { 
@@ -24,12 +24,17 @@ import { api } from '@/lib/api'
 
 type TransactionListProps = {
   initialTransactions: Transaction[]
-  onTransactionChange: () => void
+  onTransactionChange?: () => void
 }
 
 export function TransactionList({ initialTransactions, onTransactionChange }: TransactionListProps) {
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  
+  // Only update local state when initialTransactions change from the parent
+  useEffect(() => {
+    setTransactions(initialTransactions)
+  }, [initialTransactions])
 
   const formatDate = (dateStr: string | Date) => {
     const date = new Date(dateStr)
@@ -52,7 +57,7 @@ export function TransactionList({ initialTransactions, onTransactionChange }: Tr
     try {
       await api.deleteTransaction(id)
       setTransactions(transactions.filter(t => t.id !== id))
-      // Only call onTransactionChange if necessary
+      // Notify parent component of the change
       if (onTransactionChange) onTransactionChange()
     } catch (error) {
       console.error(error)
@@ -74,6 +79,7 @@ export function TransactionList({ initialTransactions, onTransactionChange }: Tr
       setTransactions(prev => [...prev, newTransaction])
     }
     setEditingTransaction(null)
+    // Notify parent component of the change
     if (onTransactionChange) onTransactionChange()
   }
 
@@ -138,7 +144,7 @@ export function TransactionList({ initialTransactions, onTransactionChange }: Tr
           {editingTransaction && (
             <TransactionForm 
               transaction={editingTransaction}
-              onSuccess={(newTransaction) => handleEditSuccess(newTransaction)}
+              onSuccess={handleEditSuccess}
               onCancel={() => setEditingTransaction(null)}
             />
           )}
