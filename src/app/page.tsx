@@ -1,7 +1,7 @@
 "use client"
 
 // app/page.tsx
-import { Suspense, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Transaction } from '@/types/transaction'
 import { TransactionForm } from '@/components/transaction-form'
 import { TransactionList } from '@/components/transaction-list'
