@@ -1,22 +1,20 @@
 "use client"
 // app/page.tsx
 import { Suspense } from 'react'
-import prisma from '@/lib/prisma'
 import { Transaction } from '@/types/transaction'
 import { TransactionForm } from '@/components/transaction-form'
 import { TransactionList } from '@/components/transaction-list'
 import { MonthlyChart } from '@/components/monthly-chart'
+import { api } from '@/lib/api'
 // import { Toaster } from '@/components/ui/sonner'
 
-async function getTransactions() {
-  const transactions = await prisma.transaction.findMany({
-    orderBy: { date: 'desc' }
-  })
-  
-  return transactions.map(t => ({
-    ...t,
-    date: t.date.toISOString()
-  }))
+async function getTransactions(): Promise<Transaction[]> {
+  try {
+    return await api.getTransactions()
+  } catch (error) {
+    console.error('Failed to fetch transactions:', error)
+    return []
+  }
 }
 
 export default async function Home() {

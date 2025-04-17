@@ -2,7 +2,6 @@
 "use client"
 
 import { useState } from 'react'
-// import { useToast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
 import { Transaction } from '@/types/transaction'
 import { 
@@ -18,10 +17,10 @@ import { TransactionForm } from './transaction-form'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { api } from '@/lib/api'
 
 type TransactionListProps = {
   initialTransactions: Transaction[]
@@ -31,53 +30,51 @@ type TransactionListProps = {
 export function TransactionList({ initialTransactions, onTransactionChange }: TransactionListProps) {
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-//   const { toast } = useToast()
 
   const formatDate = (dateStr: string | Date) => {
     const date = new Date(dateStr)
     return date.toLocaleDateString()
   }
 
+  // Helper to check if a string is a valid MongoDB ObjectId
+  const isValidObjectId = (id: string): boolean => {
+    return Boolean(id) && /^[0-9a-fA-F]{24}$/.test(id)
+  }
+
   const handleDelete = async (id: string) => {
+    if (!isValidObjectId(id)) {
+      console.error("Invalid MongoDB ObjectId format:", id)
+      return
+    }
+
     if (!confirm('Are you sure you want to delete this transaction?')) return
 
     try {
-      const response = await fetch(`/api/transactions/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete transaction')
-      }
-
+      await api.deleteTransaction(id)
       setTransactions(transactions.filter(t => t.id !== id))
-      onTransactionChange()
-      
-    //   toast({
-    //     title: 'Transaction deleted',
-    //     variant: 'default',
-    //   })
+      // Only call onTransactionChange if necessary
+      if (onTransactionChange) onTransactionChange()
     } catch (error) {
-    //   toast({
-    //     title: 'Error',
-    //     description: error instanceof Error ? error.message : 'Something went wrong',
-    //     variant: 'destructive',
-    //   })
+      console.error(error)
+      // Add toast notification
+      import('sonner').then(({ toast }) => {
+        toast.error("Failed to delete transaction")
+      })
     }
   }
 
   const handleEditSuccess = (newTransaction: Transaction) => {
     // Update the transactions list with the edited transaction
-    if (editingTransaction) {
+    if (editingTransaction && editingTransaction.id) {
       setTransactions(prev => 
-        prev.map(t => t.id === newTransaction.id ? newTransaction : t)
+        prev.map(t => t.id === editingTransaction.id ? newTransaction : t)
       )
     } else {
       // If it's a new transaction (not editing), add it to the list
       setTransactions(prev => [...prev, newTransaction])
     }
     setEditingTransaction(null)
-    onTransactionChange()
+    if (onTransactionChange) onTransactionChange()
   }
 
   return (

@@ -2,12 +2,12 @@
 "use client"
 
 import { useState } from 'react'
-// import { ToastProvider } from '@/components/providers/toast-provider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Transaction } from '../types/transaction'
+import { api } from '@/lib/api'
 
 type TransactionFormProps = {
   transaction?: Transaction
@@ -16,7 +16,6 @@ type TransactionFormProps = {
 }
 
 export function TransactionForm({ transaction, onSuccess, onCancel }: TransactionFormProps) {
-
   const [isLoading, setIsLoading] = useState(false)
   const isEditing = !!transaction
 
@@ -34,35 +33,33 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault() // Prevent default form submission
+    e.preventDefault()
+    if (isLoading) return // Prevent multiple submissions
     setIsLoading(true)
 
     try {
-      const url = isEditing 
-        ? `/api/transactions/${transaction.id}` 
-        : '/api/transactions'
-      
-      const method = isEditing ? 'PUT' : 'POST'
-      
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: parseFloat(formData.amount),
-          date: formData.date,
-          description: formData.description
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to save transaction')
+      const transactionData = {
+        amount: parseFloat(formData.amount),
+        date: formData.date,
+        description: formData.description
       }
 
-      const newTransaction = await response.json()
+      let newTransaction: Transaction
+      if (isEditing && transaction?.id) {
+        // Check if ID is a valid MongoDB ObjectId format
+        if (!/^[0-9a-fA-F]{24}$/.test(transaction.id)) {
+          throw new Error(`Invalid MongoDB ObjectId format: ${transaction.id}`)
+        }
+        
+        newTransaction = await api.updateTransaction(transaction.id, transactionData)
+      } else {
+        newTransaction = await api.createTransaction(transactionData)
+      }
+
       onSuccess(newTransaction)
     } catch (error) {
       console.error(error)
-      // Replace alert with toast
+      // Show error with toast
       import('sonner').then(({ toast }) => {
         toast.error("Failed to save transaction")
       })
